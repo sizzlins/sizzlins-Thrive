@@ -95,6 +95,8 @@ public partial class MicrobeHUD : CreatureStageHUDBase<MicrobeStage>
 
     private float previousTemperature = float.NaN;
 
+    private Label? overseerActiveToolLabel;
+
     [Signal]
     public delegate void OnToggleEngulfButtonPressedEventHandler();
 
@@ -166,25 +168,68 @@ public partial class MicrobeHUD : CreatureStageHUDBase<MicrobeStage>
         macroscopicButton.Visible = false;
 
         // Overseer Mod UI
-        var overseerBox = new VBoxContainer();
-        
-        var overseerToggleBtn = new Button();
-        overseerToggleBtn.Text = "Toggle God Mode";
-        overseerToggleBtn.Name = "OverseerToggleBtn";
-        overseerToggleBtn.Connect(Button.SignalName.Pressed, new Callable(this, nameof(OnOverseerTogglePressed)));
-        
-        var autoEvoBtn = new Button();
-        autoEvoBtn.Text = "Trigger Auto-Evo";
-        autoEvoBtn.Name = "AutoEvoBtn";
-        autoEvoBtn.Connect(Button.SignalName.Pressed, new Callable(this, nameof(OnAutoEvoPressed)));
-        
-        overseerBox.AddChild(overseerToggleBtn);
-        overseerBox.AddChild(autoEvoBtn);
-        
-        // Add to the top right of the HUD
-        AddChild(overseerBox);
-        overseerBox.SetAnchorsPreset(Control.LayoutPreset.TopRight);
-        overseerBox.Position = new Vector2(GetViewportRect().Size.X - 160, 100);
+        if (Thrive.OverseerMod.OverseerModState.OverseerModeEnabled)
+        {
+            var overseerBox = new VBoxContainer();
+
+            var panel = new PanelContainer();
+            panel.AddChild(overseerBox);
+
+            var title = new Label();
+            title.Text = "OVERSEER SANDBOX";
+            title.HorizontalAlignment = HorizontalAlignment.Center;
+            overseerBox.AddChild(title);
+
+            var overseerToggleBtn = new Button();
+            overseerToggleBtn.Text = "Toggle God Camera";
+            overseerToggleBtn.Connect(Button.SignalName.Pressed, new Callable(this, nameof(OnOverseerTogglePressed)));
+            overseerBox.AddChild(overseerToggleBtn);
+
+            var autoEvoBtn = new Button();
+            autoEvoBtn.Text = "Trigger Auto-Evo";
+            autoEvoBtn.Connect(Button.SignalName.Pressed, new Callable(this, nameof(OnAutoEvoPressed)));
+            overseerBox.AddChild(autoEvoBtn);
+
+            var timeBtn = new Button();
+            timeBtn.Text = "Fast Forward Time";
+            timeBtn.Connect(Button.SignalName.Pressed, new Callable(this, nameof(OnFastForwardPressed)));
+            overseerBox.AddChild(timeBtn);
+
+            overseerBox.AddChild(new HSeparator());
+
+            overseerActiveToolLabel = new Label();
+            overseerActiveToolLabel.Text = "Current Tool: None";
+            overseerBox.AddChild(overseerActiveToolLabel);
+
+            Thrive.OverseerMod.OverseerEventBus.OnOverseerToolChanged += OnOverseerToolChanged;
+
+            var paintBtn = new Button();
+            paintBtn.Text = "Equip: Paint Compound";
+            paintBtn.Connect(Button.SignalName.Pressed, new Callable(this, nameof(OnEquipPaintPressed)));
+            overseerBox.AddChild(paintBtn);
+
+            var wallBtn = new Button();
+            wallBtn.Text = "Equip: Isolation Wall";
+            wallBtn.Connect(Button.SignalName.Pressed, new Callable(this, nameof(OnEquipWallPressed)));
+            overseerBox.AddChild(wallBtn);
+
+            var smiteBtn = new Button();
+            smiteBtn.Text = "Equip: Smite Cell";
+            smiteBtn.Connect(Button.SignalName.Pressed, new Callable(this, nameof(OnEquipSmitePressed)));
+            overseerBox.AddChild(smiteBtn);
+
+            var zapBtn = new Button();
+            zapBtn.Text = "Equip: Zap/Mutate";
+            zapBtn.Connect(Button.SignalName.Pressed, new Callable(this, nameof(OnEquipZapPressed)));
+            overseerBox.AddChild(zapBtn);
+
+            // Add to the top right of the HUD
+            AddChild(panel);
+            panel.SetAnchorsPreset(Control.LayoutPreset.TopRight);
+            panel.Position = new Vector2(GetViewportRect().Size.X - 220, 100);
+
+            CallDeferred(nameof(InitOverseerTools));
+        }
     }
 
     public override void _EnterTree()
@@ -197,13 +242,13 @@ public partial class MicrobeHUD : CreatureStageHUDBase<MicrobeStage>
     {
         base._ExitTree();
         Localization.Instance.OnTranslationsChanged -= OnTranslationsChanged;
+        Thrive.OverseerMod.OverseerEventBus.OnOverseerToolChanged -= OnOverseerToolChanged;
     }
 
-    public void OnOverseerTogglePressed()
+    public void InitOverseerTools()
     {
         if (stage == null) return;
         
-        // Ensure components exist
         var overseerCamera = stage.GetNodeOrNull<Thrive.OverseerMod.OverseerCamera>("OverseerCamera");
         if (overseerCamera == null)
         {
@@ -224,16 +269,25 @@ public partial class MicrobeHUD : CreatureStageHUDBase<MicrobeStage>
             dynamicSpawner = new Thrive.OverseerMod.DynamicSpawner { Name = "DynamicSpawner", Stage = stage };
             stage.AddChild(dynamicSpawner);
         }
-        
-        if (overseerCamera.IsActive)
+    }
+
+    public void OnOverseerTogglePressed()
+    {
+        if (stage == null) return;
+        InitOverseerTools();
+        var overseerCamera = stage.GetNodeOrNull<Thrive.OverseerMod.OverseerCamera>("OverseerCamera");
+        if (overseerCamera != null)
         {
-            overseerCamera.Deactivate();
-            HUDMessages.ShowMessage("Overseer Mode Deactivated", DisplayDuration.Short);
-        }
-        else
-        {
-            overseerCamera.Activate();
-            HUDMessages.ShowMessage("Overseer Mode Activated", DisplayDuration.Short);
+            if (overseerCamera.IsActive)
+            {
+                overseerCamera.Deactivate();
+                HUDMessages.ShowMessage("Overseer Mode Deactivated", DisplayDuration.Short);
+            }
+            else
+            {
+                overseerCamera.Activate();
+                HUDMessages.ShowMessage("Overseer Mode Activated", DisplayDuration.Short);
+            }
         }
     }
 
@@ -249,6 +303,44 @@ public partial class MicrobeHUD : CreatureStageHUDBase<MicrobeStage>
         }
         
         autoEvo.TriggerAutoEvo();
+    }
+
+    public void OnFastForwardPressed()
+    {
+        var tools = stage?.GetNodeOrNull<Thrive.OverseerMod.OverseerSandboxTools>("OverseerSandboxTools");
+        tools?.ChangeTimeScale(1.0f);
+    }
+    
+    public void OnEquipPaintPressed()
+    {
+        var tools = stage?.GetNodeOrNull<Thrive.OverseerMod.OverseerSandboxTools>("OverseerSandboxTools");
+        tools?.SetTool(Thrive.OverseerMod.ActiveTool.Paint);
+    }
+    
+    public void OnEquipWallPressed()
+    {
+        var tools = stage?.GetNodeOrNull<Thrive.OverseerMod.OverseerSandboxTools>("OverseerSandboxTools");
+        tools?.SetTool(Thrive.OverseerMod.ActiveTool.Wall);
+    }
+    
+    public void OnEquipSmitePressed()
+    {
+        var tools = stage?.GetNodeOrNull<Thrive.OverseerMod.OverseerSandboxTools>("OverseerSandboxTools");
+        tools?.SetTool(Thrive.OverseerMod.ActiveTool.Smite);
+    }
+    
+    public void OnEquipZapPressed()
+    {
+        var tools = stage?.GetNodeOrNull<Thrive.OverseerMod.OverseerSandboxTools>("OverseerSandboxTools");
+        tools?.SetTool(Thrive.OverseerMod.ActiveTool.Zap);
+    }
+
+    private void OnOverseerToolChanged(string toolName)
+    {
+        if (overseerActiveToolLabel != null && IsInstanceValid(overseerActiveToolLabel))
+        {
+            overseerActiveToolLabel.Text = $"Current Tool: {toolName}";
+        }
     }
 
     public override void _Process(double delta)

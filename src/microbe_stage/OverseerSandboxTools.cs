@@ -7,9 +7,12 @@ using System;
 
 namespace Thrive.OverseerMod
 {
+    public enum ActiveTool { None, Paint, Wall, Smite, Zap }
+
     public partial class OverseerSandboxTools : Node
     {
         public MicrobeStage Stage { get; set; } = null!;
+        public ActiveTool CurrentTool { get; set; } = ActiveTool.None;
         private Compound currentPaintCompound = Compound.Glucose;
 
         public override void _UnhandledInput(InputEvent @event)
@@ -27,12 +30,12 @@ namespace Thrive.OverseerMod
 
                 if (keyEvent.Keycode == Key.P)
                 {
-                    PaintEnvironment(overseer.CursorWorldPos);
+                    SetTool(ActiveTool.Paint);
                 }
                 
                 if (keyEvent.Keycode == Key.O)
                 {
-                    PlaceIsolationWall(overseer.CursorWorldPos);
+                    SetTool(ActiveTool.Wall);
                 }
 
                 if (keyEvent.Keycode == Key.Bracketleft)
@@ -56,12 +59,51 @@ namespace Thrive.OverseerMod
 
                 if (keyEvent.Keycode == Key.K)
                 {
-                    SmiteCell();
+                    SetTool(ActiveTool.Smite);
                 }
                 if (keyEvent.Keycode == Key.L)
                 {
-                    ZapCell();
+                    SetTool(ActiveTool.Zap);
                 }
+                
+                if (keyEvent.Keycode == Key.Escape)
+                {
+                    SetTool(ActiveTool.None);
+                }
+            }
+            
+            if (@event is InputEventMouseButton mouseBtn && mouseBtn.ButtonIndex == MouseButton.Left && mouseBtn.Pressed && !mouseBtn.IsEcho())
+            {
+                if (CurrentTool != ActiveTool.None)
+                {
+                    ExecuteActiveTool(overseer.CursorWorldPos);
+                }
+            }
+        }
+        
+        public void SetTool(ActiveTool tool)
+        {
+            CurrentTool = tool;
+            Stage.HUD.HUDMessages.ShowMessage($"Equipped Tool: {tool}", DisplayDuration.Short);
+            OverseerEventBus.EmitOverseerToolChanged(tool.ToString());
+        }
+
+        private void ExecuteActiveTool(Vector3 pos)
+        {
+            switch (CurrentTool)
+            {
+                case ActiveTool.Paint:
+                    PaintEnvironment(pos);
+                    break;
+                case ActiveTool.Wall:
+                    PlaceIsolationWall(pos);
+                    break;
+                case ActiveTool.Smite:
+                    SmiteCell();
+                    break;
+                case ActiveTool.Zap:
+                    ZapCell();
+                    break;
             }
         }
 
@@ -135,7 +177,7 @@ namespace Thrive.OverseerMod
             Stage.HUD.HUDMessages.ShowMessage("Placed Isolation Wall", DisplayDuration.Short);
         }
         
-        private void ChangeTimeScale(float amount)
+        public void ChangeTimeScale(float amount)
         {
             Stage.WorldSimulation.WorldTimeScale = Mathf.Max(0.1f, Stage.WorldSimulation.WorldTimeScale + amount);
             Stage.HUD.HUDMessages.ShowMessage($"Time Scale: {Stage.WorldSimulation.WorldTimeScale}x", DisplayDuration.Short);
@@ -143,6 +185,8 @@ namespace Thrive.OverseerMod
         
         private void SmiteCell()
         {
+            if (Stage.HoverInfo?.Entities == null) return;
+
             var target = Stage.HoverInfo.Entities.FirstOrDefault();
             if (target != default && target != Entity.Null && target.IsAliveAndHas<Health>())
             {
@@ -151,7 +195,7 @@ namespace Thrive.OverseerMod
                     Stage.HUD.HUDMessages.ShowMessage("Target is already being digested!", DisplayDuration.Short);
                     return;
                 }
-                
+
                 ref var health = ref target.Get<Health>();
                 health.CurrentHealth = 0;
                 Stage.HUD.HUDMessages.ShowMessage("Smote cell!", DisplayDuration.Short);
@@ -160,6 +204,8 @@ namespace Thrive.OverseerMod
         
         private void ZapCell()
         {
+            if (Stage.HoverInfo?.Entities == null) return;
+
             var target = Stage.HoverInfo.Entities.FirstOrDefault();
             if (target != default && target != Entity.Null && target.IsAliveAndHas<SpeciesMember>())
             {
@@ -168,29 +214,30 @@ namespace Thrive.OverseerMod
                     Stage.HUD.HUDMessages.ShowMessage("Cannot zap a cell that is currently being digested!", DisplayDuration.Short);
                     return;
                 }
-                
+
                 ref var speciesMember = ref target.Get<SpeciesMember>();
                 var oldSpecies = speciesMember.Species;
-                
+
                 // Scramble by grabbing a random species from the current game world ecosystem
                 var speciesList = Stage.GameWorld.Species.Values.ToList();
                 if (speciesList.Count > 0)
                 {
                     // Pick a random species that isn't this one if possible
                     var newSpecies = speciesList[Random.Shared.Next(speciesList.Count)];
-                    
+
                     var pos = target.Has<WorldPosition>() ? target.Get<WorldPosition>().Position : Vector3.Zero;
                     bool wasPlayer = target.Has<PlayerMarker>();
-                    
-                    SpawnHelpers.SpawnMicrobe(Stage.WorldSimulation, Stage, newSpecies as MicrobeSpecies, pos, !wasPlayer);
-                    
+
+                    // Pass Species directly — "as MicrobeSpecies" would return null for MulticellularSpecies
+                    SpawnHelpers.SpawnMicrobe(Stage.WorldSimulation, Stage, newSpecies, pos, !wasPlayer);
+
                     // Kill the original
                     if (target.Has<Health>())
                     {
                         ref var health = ref target.Get<Health>();
                         health.CurrentHealth = 0;
                     }
-                    
+
                     Stage.HUD.HUDMessages.ShowMessage("Zapped cell! Mutated to new species.", DisplayDuration.Short);
                 }
             }

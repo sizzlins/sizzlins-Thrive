@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
@@ -268,6 +268,15 @@ public partial class NewGameSettings : ControlWithInput
             backButton.Visible = false;
             checkOptionsMenuAdviceContainer.Visible = false;
         }
+
+        // Dynamically create Overseer Mode toggle
+        var overseerModeButton = new CheckButton();
+        overseerModeButton.Text = "Enable Overseer Sandbox Mode";
+        overseerModeButton.TooltipText = "Enable God Powers and Sandbox Tools in the Microbe Stage";
+        overseerModeButton.ButtonPressed = Thrive.OverseerMod.OverseerModState.OverseerModeEnabled;
+        overseerModeButton.Toggled += (bool pressed) => { Thrive.OverseerMod.OverseerModState.OverseerModeEnabled = pressed; };
+        
+        lawkButton.GetParent().AddChild(overseerModeButton);
 
         OnPlanetSettingsChanged();
     }

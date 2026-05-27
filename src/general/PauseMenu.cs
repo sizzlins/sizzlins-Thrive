@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using Godot;
 
@@ -243,6 +243,18 @@ public partial class PauseMenu : CanvasLayer
 
         if (GameProperties != null)
             thriveopedia.CurrentGame = GameProperties;
+
+        // Dynamically create Overseer Mode toggle in Pause Menu
+        var overseerToggle = new CheckButton();
+        overseerToggle.Text = "Enable Overseer Sandbox Mode";
+        overseerToggle.TooltipText = "Toggle God Powers and Sandbox Tools";
+        overseerToggle.ButtonPressed = Thrive.OverseerMod.OverseerModState.OverseerModeEnabled;
+        overseerToggle.Toggled += (bool pressed) => { Thrive.OverseerMod.OverseerModState.OverseerModeEnabled = pressed; };
+        
+        // Add to primaryMenu and position it so it doesn't overlap the main VBoxContainer
+        primaryMenu.AddChild(overseerToggle);
+        overseerToggle.SetAnchorsPreset(Control.LayoutPreset.TopLeft);
+        overseerToggle.Position = new Vector2(20, 20);
     }
 
     public override void _EnterTree()

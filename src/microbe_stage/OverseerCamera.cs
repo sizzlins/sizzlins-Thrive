@@ -100,7 +100,11 @@ namespace Thrive.OverseerMod
                 }
                 else if (mouseBtn.ButtonIndex == MouseButton.Left && mouseBtn.Pressed && !mouseBtn.IsEcho())
                 {
-                    TryPossessCell();
+                    var sandboxTools = Stage.GetNodeOrNull<OverseerSandboxTools>("OverseerSandboxTools");
+                    if (sandboxTools == null || sandboxTools.CurrentTool == ActiveTool.None)
+                    {
+                        TryPossessCell();
+                    }
                 }
             }
             else if (@event is InputEventMouseMotion mouseMotion)
