@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -29,6 +29,7 @@ public sealed partial class MicrobeStage : CreatureStageBase<Entity, MicrobeWorl
     // This is no longer saved with child properties as it gets really complicated trying to load data into this from
     // a save
     private PatchManager patchManager = null!;
+    public PatchManager PatchManager => patchManager;
 
     private Patch? tempPatchManagerCurrentPatch;
     private float tempPatchManagerBrightness;
@@ -221,6 +222,11 @@ public sealed partial class MicrobeStage : CreatureStageBase<Entity, MicrobeWorl
         writer.WriteObjectProperties(HUD);
         writer.WriteObjectOrNull(SavedPatchManagerPatch);
         writer.Write(SavedPatchManagerBrightness);
+    }
+
+    public void SetPlayer(Entity newPlayer)
+    {
+        Player = newPlayer;
     }
 
     /// <summary>

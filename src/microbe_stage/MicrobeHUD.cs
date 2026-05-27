@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -164,6 +164,27 @@ public partial class MicrobeHUD : CreatureStageHUDBase<MicrobeStage>
 
         multicellularButton.Visible = false;
         macroscopicButton.Visible = false;
+
+        // Overseer Mod UI
+        var overseerBox = new VBoxContainer();
+        
+        var overseerToggleBtn = new Button();
+        overseerToggleBtn.Text = "Toggle God Mode";
+        overseerToggleBtn.Name = "OverseerToggleBtn";
+        overseerToggleBtn.Connect(Button.SignalName.Pressed, new Callable(this, nameof(OnOverseerTogglePressed)));
+        
+        var autoEvoBtn = new Button();
+        autoEvoBtn.Text = "Trigger Auto-Evo";
+        autoEvoBtn.Name = "AutoEvoBtn";
+        autoEvoBtn.Connect(Button.SignalName.Pressed, new Callable(this, nameof(OnAutoEvoPressed)));
+        
+        overseerBox.AddChild(overseerToggleBtn);
+        overseerBox.AddChild(autoEvoBtn);
+        
+        // Add to the top right of the HUD
+        AddChild(overseerBox);
+        overseerBox.SetAnchorsPreset(Control.LayoutPreset.TopRight);
+        overseerBox.Position = new Vector2(GetViewportRect().Size.X - 160, 100);
     }
 
     public override void _EnterTree()
@@ -176,6 +197,58 @@ public partial class MicrobeHUD : CreatureStageHUDBase<MicrobeStage>
     {
         base._ExitTree();
         Localization.Instance.OnTranslationsChanged -= OnTranslationsChanged;
+    }
+
+    public void OnOverseerTogglePressed()
+    {
+        if (stage == null) return;
+        
+        // Ensure components exist
+        var overseerCamera = stage.GetNodeOrNull<Thrive.OverseerMod.OverseerCamera>("OverseerCamera");
+        if (overseerCamera == null)
+        {
+            overseerCamera = new Thrive.OverseerMod.OverseerCamera { Name = "OverseerCamera", Stage = stage };
+            stage.AddChild(overseerCamera);
+        }
+        
+        var sandboxTools = stage.GetNodeOrNull<Thrive.OverseerMod.OverseerSandboxTools>("OverseerSandboxTools");
+        if (sandboxTools == null)
+        {
+            sandboxTools = new Thrive.OverseerMod.OverseerSandboxTools { Name = "OverseerSandboxTools", Stage = stage };
+            stage.AddChild(sandboxTools);
+        }
+        
+        var dynamicSpawner = stage.GetNodeOrNull<Thrive.OverseerMod.DynamicSpawner>("DynamicSpawner");
+        if (dynamicSpawner == null)
+        {
+            dynamicSpawner = new Thrive.OverseerMod.DynamicSpawner { Name = "DynamicSpawner", Stage = stage };
+            stage.AddChild(dynamicSpawner);
+        }
+        
+        if (overseerCamera.IsActive)
+        {
+            overseerCamera.Deactivate();
+            HUDMessages.ShowMessage("Overseer Mode Deactivated", DisplayDuration.Short);
+        }
+        else
+        {
+            overseerCamera.Activate();
+            HUDMessages.ShowMessage("Overseer Mode Activated", DisplayDuration.Short);
+        }
+    }
+
+    public void OnAutoEvoPressed()
+    {
+        if (stage == null) return;
+        
+        var autoEvo = stage.GetNodeOrNull<Thrive.OverseerMod.OverseerAutoEvoController>("OverseerAutoEvoController");
+        if (autoEvo == null)
+        {
+            autoEvo = new Thrive.OverseerMod.OverseerAutoEvoController { Name = "OverseerAutoEvoController", Stage = stage };
+            stage.AddChild(autoEvo);
+        }
+        
+        autoEvo.TriggerAutoEvo();
     }
 
     public override void _Process(double delta)
