@@ -1,6 +1,8 @@
 Thrive
 ======
 
+This repository is sizzlins-Thrive, a modded version of Thrive
+
 This is the code repository for Thrive. For more information, visit
 [Revolutionary Games' Website](https://revolutionarygamesstudio.com/).
 
